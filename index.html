@@ -11,7 +11,7 @@
 		PALETTE
 		--vivid-sky-blue: #0ad2ffff
 		--eerie-black: #131313ff
-		--slimy-green: #009c29ff
+		--slimy-green: #00ff00
 		--ruby-red: #9b1d20ff
 		--tea-green: #d0ffceff
 	*/
@@ -20,7 +20,8 @@
 
 	body {
 		margin: 0px;
-		font-family: Arial, Helvetica, sans-serif;
+		/* font-family: Arial, Helvetica, sans-serif; */
+		font-family: 'Courier New', monospace;
 	}
 
 	.content {
@@ -43,9 +44,10 @@
 		z-index: 100;
 	}
 
-	.navbar a {
+	.navbar .item {
 		float: right;
-		color: white;
+		color: #00ff00;
+		display: grid;
 		padding-top: 3vh;
 		padding-bottom: 3vh;
 		padding-left: 1vw;
@@ -54,13 +56,15 @@
 		justify-content: center;
 		text-align: center;
 		text-decoration: none;
-		font-size: 17px;
+		font-size: 1.2em;
+		font-weight: bold;
 		height: 4vh;
 	}
 
-	.navbar a:hover {
+	.navbar .item:hover {
 		cursor: pointer;
-		background-color: #0ad2ffff;
+		color: #131313ff;
+		background-color: #00ff00;
 	}
 
 	.character {
@@ -124,15 +128,16 @@
 	}
 
 	.section-info {
+		white-space: pre;
 		height: 65vh;
 		width: 100%;
 	}
 
 	.sobre {
 		display: flex;
-		color: #131313ff;
+		color: #00ff00;
 		/*height: 80vh;*/
-		background-color: #d0ffceff;
+		background-color: #131313ff;
 	}
 
 	.avatar-space {
@@ -165,7 +170,7 @@
 	}
 
 	.trabalhos {
-		background-color: #0ad2ffff;
+		background-color: #131313ff;
 	}
 
 	.footer {
@@ -180,17 +185,25 @@
 	<div class="content">
 
 		<div class="navbar">
-			<a id="trabalhos">Trabalhos</a>
-			<a id="habilidades">Habilidades</a>
-			<a id="sobre">Sobre</a>
-			<a id="inicio">inicio</a>
+			<div class="item">
+				<a id="trabalhos">Trabalhos</a>
+			</div>
+			<div class="item">
+				<a id="habilidades">Habilidades</a>
+			</div>
+			<div class="item">
+				<a id="sobre">Sobre</a>
+			</div>
+			<div class="item">
+				<a id="inicio">inicio</a>
+			</div>
 		</div>
 
 		<div class="navghost">
 			<!-- boooo! -->
 		</div>
 
-		<div class="character">
+		<section class="character">
 			<div class="label-character">
 				<div class="label-character-text">
 					<h2>Estamos trabalhando....</h2>
@@ -203,8 +216,8 @@
 					
 				</div>
 			</div>
-		</div>
-		<div class="section-info sobre">
+		</section>
+		<section class="section-info sobre">
 			<div class="avatar-space">
 				<img src="./img/me.jpg" alt="Lucas Da Silva Rodrigues Avatar" class="avatar">
 			</div>
@@ -212,13 +225,13 @@
 				<h3><strong>Quem é Lucas da Silva Rodrigues?</strong></h3>
 				<p>Desde Criança sou apaixonado por invenções, tecnologias e computadores, mas foi na adolescência que descobri como expressar essa paixão através da programação.</p>
 			</div>
-		</div>
-		<div class="section-info habilidades">
+		</section>
+		<section class="section-info habilidades">
 			
-		</div>
-		<div class="section-info trabalhos">
+		</section>
+		<section class="section-info trabalhos">
 			
-		</div>
+		</section>
 		<div class="footer">
 			
 		</div>
@@ -251,9 +264,28 @@
 
 		const renderer = new THREE.WebGLRenderer();
 		renderer.setSize( width, height );
-		charElement.appendChild( renderer.domElement );
-		const light = new THREE.AmbientLight( 0xD0E0E3 ); // soft white light
+		renderer.shadowMap.enabled = true
+		renderer.shadowMap.type = THREE.PCFSoftShadowMap
+		charElement.appendChild( renderer.domElement );	
+		const light = new THREE.AmbientLight( 0xFFFFFF ); // havy white light
+		// const light = new THREE.AmbientLight( 0xD0E0E3 ); // soft white light
 		scene.add( light );
+
+		const uniforms = {
+			u_mouse: { value: { x: width / 2, y: height / 2 } },
+			u_resolution: { value: { x: window.innerWidth, y: window.innerHeight } },
+			// u_resolution: { value: { x: width, y: height } },
+			u_time: { value: 0.0 }
+		}
+		const backgroundMaterial = new THREE.ShaderMaterial({
+			vertexShader: document.getElementById( 'vertex-shader' ).textContent,
+			fragmentShader: document.getElementById( 'fragment-shader' ).textContent,
+			uniforms
+		});
+		const planeGeometry = new THREE.PlaneBufferGeometry(100,100,1,1)
+		const plane = new THREE.Mesh(planeGeometry, backgroundMaterial)
+		plane.position.z = -10;
+		scene.add(plane)
 
 		console.log("camera",camera);
 
@@ -270,10 +302,12 @@
 			if(!lastSecod) { lastSecod = t};
 
 			if (mixer && t) {
-			    let deltaSeconds = clock.getDelta();
 			    let timeInSecods = (t - lastSecod) * 0.001;
 				mixer.update( timeInSecods );
+
+				uniforms.u_time.value += timeInSecods;
 			}
+			
 
 			lastSecod = t;
 
@@ -305,5 +339,67 @@
 		} );
 		
 	</script>
+
+	<!-- shader for background -->
+	<script id="fragment-shader" type="x-shader/x-fragment">
+		// Matrix Visual Effect
+		#ifdef GL_ES
+			precision mediump float;
+		#endif
+
+		uniform vec2 u_resolution;
+		uniform vec2 u_mouse;
+		uniform float u_time;
+
+
+		float random(in float x){
+			return fract(sin(x)*43758.5453);
+		}
+
+		float random(in vec2 st){
+			return fract(sin(dot(st.xy ,vec2(12.9898,78.233))) * 43758.5453);
+		}
+
+		float rchar(in vec2 outer,in vec2 inner){
+			float grid = 5.;
+			vec2 margin = vec2(.2,.05);
+			float seed = 23.;
+			vec2 borders = step(margin,inner)*step(margin,1.-inner);
+			return step(.5,random(outer*seed+floor(inner*grid))) * borders.x * borders.y;
+		}
+
+		vec3 matrix(in vec2 st){
+			float rows = 80.0;
+			vec2 ipos = floor(st*rows);
+
+			ipos += vec2(.0,floor(u_time*20.*random(ipos.x)));
+
+			vec2 fpos = fract(st*rows);
+			vec2 center = (.5-fpos);
+
+			float pct = random(ipos);
+			float glow = (1.-dot(center,center)*3.)*1.5;
+
+			return vec3(0,rchar(ipos,fpos) * pct * glow,0);
+		}
+
+		void main(){
+			vec2 st = gl_FragCoord.st/u_resolution.xy;
+			st.y *= u_resolution.y/u_resolution.x;
+			vec3 color = matrix(st);
+			gl_FragColor = vec4(color , 1);
+		}
+	</script>
+
+	<script id="vertex-shader" type="x-shader/x-vertext">
+		varying vec2 v_uv;
+	
+		void main() {
+			v_uv = uv;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+		}
+	</script>
+
+	
 </body>
 </html>
