@@ -24,7 +24,13 @@
 		font-family: 'Courier New', monospace;
 	}
 
-	/* width: 100% */
+	.full-width {
+		width: 100%
+	}
+
+	.full-height {
+		height: 100%
+	}
 
 	.content {
 		/*min-width: 100%;*/
@@ -252,7 +258,7 @@
 			<div class="card cmd-window">
 				<div class="cmd-top-bar">
 					Prompt De Comando
-					<div>
+					<div class="full-height">
 						<button class="cmd-button">—</button>
 						<button class="cmd-button">▢</button>
 						<button class="cmd-button close-button">X</button>
@@ -261,9 +267,9 @@
 				<div class="cmd-content">
 					<!-- Your card content goes here -->
 					<h2>C:\Users\Tom4te> Sobre Mim.exe</h2>
-					<p>Hello, I am a back-end developer with over 5 years of experience working on large-scale projects for big
-						companies. I specialize in developing scalable and secure back-end systems using technologies such as
-						Node.js, Python and SQL.</p>
+					<p>Olá, Eu sou um desenvolvedor apaixonado por invenções, tecnologia, ciencia e matematica.</p>
+					<p>Olá, Eu sou um desenvolvedor apaixonado por invenções, tecnologia, ciencia e matematica.</p>
+					<p>Olá, Eu sou um desenvolvedor apaixonado por invenções, tecnologia, ciencia e matematica.</p>
 				</div>
 			</div>
 		
@@ -292,94 +298,144 @@
 	<script type="module">
 		import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 	    import * as THREE from 'three';
-
+		
+		const defaultSelector = ".char-three"
 		const clock = new THREE.Clock();
-		const charElement = document.querySelector(".char-three");
-		var width = charElement.offsetWidth;
-		var height = charElement.offsetHeight;
-		const scene = new THREE.Scene();
-		scene.background = new THREE.Color( 0x0AD2FF );
-		scene.fog = new THREE.Fog( 0xa0a0a0, 10, 50 );
-		const camera = new THREE.PerspectiveCamera( 75, width / height, 0.1, 1000 );
-		// camera.position.set( -1.5, 1.2, 2 );
-		// camera.lookAt( -1.5, 1, -1 );
-
-		const renderer = new THREE.WebGLRenderer();
-		renderer.setSize( width, height );
-		renderer.shadowMap.enabled = true
-		renderer.shadowMap.type = THREE.PCFSoftShadowMap
-		charElement.appendChild( renderer.domElement );	
-		const light = new THREE.AmbientLight( 0xFFFFFF ); // havy white light
-		// const light = new THREE.AmbientLight( 0xD0E0E3 ); // soft white light
-		scene.add( light );
-
-		const uniforms = {
-			u_mouse: { value: { x: width / 2, y: height / 2 } },
-			u_resolution: { value: { x: window.innerWidth, y: window.innerHeight } },
-			// u_resolution: { value: { x: width, y: height } },
-			u_time: { value: 0.0 }
-		}
-		const backgroundMaterial = new THREE.ShaderMaterial({
-			vertexShader: document.getElementById( 'vertex-shader' ).textContent,
-			fragmentShader: document.getElementById( 'fragment-shader' ).textContent,
-			uniforms
-		});
-		const planeGeometry = new THREE.PlaneBufferGeometry(100,100,1,1)
-		const plane = new THREE.Mesh(planeGeometry, backgroundMaterial)
-		plane.position.z = -10;
-		scene.add(plane)
-
-		console.log("camera",camera);
-
+		var charElement = document.querySelector(defaultSelector);
 		var mixer = null;
         var lastSecod = null;
+		var game = null;
 
-        function cameraRotate(t) {
-        	camera.position.set( -1.5, 1.2, 2 );
-        	camera.lookAt( -1.5, 1, -1 );
-        }
+		function main() {
+			game = {
+				htmlSelecto: defaultSelector,
+				elementWidth: charElement.offsetWidth, 
+				elementHeight: charElement.offsetHeight, 
+				backgroundColor: 0x0AD2FF,
+				containerElement: charElement,
+				lights: [],
+				activeLights: [],
+				get ratio(){
+					return this.elementWidth / this.elementHeight;
+				},
+				activeLight(light) {
+					this.lights.push(light);
+					this.activeLights.push(light);
+				},
+				update(t) {
+					let timeInSecods = (t - lastSecod) * 0.001;
 
-		function animate(t) {
+					if(this.backgroundPlaneUniforms) {
+						this.backgroundPlaneUniforms.u_time.value += timeInSecods;
 
-			if(!lastSecod) { lastSecod = t};
+						if(this.backgroundPlaneUniforms.u_time.value > 40) {
+							this.backgroundPlaneUniforms.u_time.value = 0;
+						}
+					}
 
-			if (mixer && t) {
-			    let timeInSecods = (t - lastSecod) * 0.001;
-				mixer.update( timeInSecods );
+					if(this.mixer) {
+						this.mixer.update( timeInSecods );
+					}
+				}
+			};
 
-				uniforms.u_time.value += timeInSecods;
-			}
-			
+			function animate(t) {
 
-			lastSecod = t;
+				if(!(game && game.ready)) {
+					return;
+				}
 
-			cameraRotate();
+				if(!lastSecod) { lastSecod = t};
 
-			requestAnimationFrame( animate );
-			renderer.render( scene, camera );
+				if (t) {
+					game.update(t);
+				}
+
+				lastSecod = t;
+
+				requestAnimationFrame( animate );
+				game.renderer.render( game.scene, game.camera );
+
+			};
+
+			setUpScene(game);
+			setUpCamera(game);
+			setUpElements(game);
+			setUpWindowResize(game)
+			game.ready = true;
+			animate();
 		}
 
-		animate();
+		main();
 
-		const loader = new GLTFLoader().setPath( './models' );
-		loader.load( '/run.glb', function ( glb ) {
-			const mesh = glb.scene;
-			// console.log("mesh",mesh);
+		function setUpWindowResize(game) {
 
-			mesh.position.set(0,0, 0);
-			// mesh.rotation.set(0,Math.PI - (Math.PI / 10), 0);
-			mesh.rotation.set(0,0, 0);
-
-			// Create an AnimationMixer, and get the list of AnimationClip instances
-			mixer = new THREE.AnimationMixer( mesh );
-			const clips = glb.animations;
-
-			// Play a specific animation
-			const action = mixer.clipAction( glb.animations[0] );
-			action.play()
-			scene.add( mesh );
-		} );
+		}
 		
+		function setUpScene(game) {
+			const scene = new THREE.Scene();
+			scene.background = new THREE.Color( game.backgroundColor );
+			scene.fog = new THREE.Fog( 0xa0a0a0, 10, 50 );
+
+			const renderer = new THREE.WebGLRenderer();
+			renderer.setSize( game.elementWidth, game.elementHeight );
+			renderer.shadowMap.enabled = true
+			renderer.shadowMap.type = THREE.PCFSoftShadowMap
+			game.containerElement.appendChild( renderer.domElement );
+
+			const light = new THREE.AmbientLight( 0xFFFFFF ); // havy white light
+			// const light = new THREE.AmbientLight( 0xD0E0E3 ); // soft white light
+			scene.add( light );
+			
+			game.scene = scene;
+			game.renderer = renderer;
+			game.activeLight(light);
+		};
+
+		function setUpCamera(game) {
+			const camera = new THREE.PerspectiveCamera( 75, game.ratio, 0.1, 1000 );
+			camera.position.set( -1.5, 1.2, 2 );
+        	camera.lookAt( -1.5, 1, -1 );
+			game.camera = camera;
+		}
+
+		function setUpElements(game){
+			const width = game.elementWidth;
+			const height = game.elementHeight;
+			const uniforms = {
+				u_mouse: { value: { x: width / 2, y: height / 2 } },
+				u_resolution: { value: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
+				// u_resolution: { value: { x: width, y: height } },
+				u_time: { value: 0.0 }
+			}
+			const backgroundMaterial = new THREE.ShaderMaterial({
+				vertexShader: document.getElementById( 'vertex-shader' ).textContent,
+				fragmentShader: document.getElementById( 'fragment-shader' ).textContent,
+				uniforms
+			});
+			const planeGeometry = new THREE.PlaneBufferGeometry(100,100,1,1)
+			const plane = new THREE.Mesh(planeGeometry, backgroundMaterial)
+			plane.position.z = -10;
+			game.scene.add(plane)
+			game.backgroundPlane = plane;
+			game.backgroundPlaneUniforms = uniforms;
+	
+			const loader = new GLTFLoader().setPath( './models' );
+			loader.load( '/run.glb', function ( glb ) {
+				const mesh = glb.scene;
+				mesh.position.set(0,0, 0);
+				mesh.rotation.set(0,0, 0);
+
+				game.mixer = new THREE.AnimationMixer( mesh );
+				const clips = glb.animations;
+				const action = game.mixer.clipAction( glb.animations[0] );
+				action.play()
+
+				game.scene.add( mesh );
+			} );
+			
+		}
+
 	</script>
 
 	<!-- shader for background -->
